@@ -12,3 +12,134 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+/**
+ * Chaque User peut téléverser des ressources et interagir sur la plateforme
+ */
+model User {
+  id             String     @id @default(uuid())
+  firstname      String
+  lastname       String
+  email          String     @unique
+  password       String
+  urlProfilImage String?
+  isDeleted      Boolean    @default(false)
+  role           UserRole   @default(User)
+  resources      Resource[]
+  comment        Comment[]
+  like           Like[]
+  favorite       Favorite[]
+  questions      Question[]
+  answers        Answer[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+enum UserRole {
+  Administrator
+  User
+}
+
+/**
+ * Chaque Ressource est un document .pdf partagé sur la plateforme
+ */
+model Resource {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  fileUrl     String
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id])
+  categoryId  Int
+  category    Category   @relation(fields: [categoryId], references: [id])
+  comments    Comment[]
+  Like        Like[]
+  Favorite    Favorite[]
+  createdAt   DateTime   @default(now())
+}
+
+/**
+ * Permet de classer les ressources et questions poser dans le forum
+ * Exemple:
+ * Informatique
+ * Sciences
+ * Langues
+ * Mathématiques
+ * Médecine
+ */
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  questions Question[]
+  resources Resource[]
+  createdAt DateTime   @default(now())
+}
+
+/**
+ * Les Users peuvent commenter une ressource
+ */
+model Comment {
+  id         Int      @id @default(autoincrement())
+  content    String
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  resourceId Int
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+/**
+ * Les Users peuvent aimer une ressource
+ */
+model Like {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  resourceId Int
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+/**
+ * Les Users peuvent ajouter des ressources à leurs favoris
+ */
+model Favorite {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  resourceId Int
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+/**
+ * Les Users peuvent poser des questions dans le forum
+ */
+model Question {
+  id         Int      @id @default(autoincrement())
+  title      String
+  content    String
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  viewsCount Int      @default(0)
+  answers    Answer[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/**
+ * Les Users peuvent répondre à une question
+ */
+model Answer {
+  id         Int      @id @default(autoincrement())
+  content    String
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+  isAccepted Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
