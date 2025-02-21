@@ -24,6 +24,8 @@ model User {
   password       String
   urlProfilImage String?
   isDeleted      Boolean    @default(false)
+  refreshToken   String?
+  tokenRevokedAt DateTime?
   role           UserRole   @default(User)
   resources      Resource[]
   comment        Comment[]
