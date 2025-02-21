@@ -69,65 +69,6 @@ async function authMiddleware(req, res, next) {
   }
 }
 
-// async function authMiddleware(req, res, next) {
-//   const token = req.cookies.token;
-//   if (!token) {
-//     return res.status(401).json({
-//       // message: "Vous devez être connecté pour accéder à cette ressource",
-//       message: "Accès refusé, aucun token fourni",
-//     });
-//   }
-
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     const foundUser = await user.findUnique({
-//       where: {
-//         email: decoded.email,
-//       },
-//     });
-
-//     if (!foundUser) {
-//       return res.status(404).json({ message: "Utilisateur non trouvé" });
-//     }
-
-//     // Vérification de la révocation du token
-//     if (
-//       foundUser.tokenRevokedAt &&
-//       new Date(foundUser.tokenRevokedAt) > new Date(decoded.iat * 1000)
-//     ) {
-//       return res
-//         .status(401)
-//         .json({ message: "Token expiré, veuillez vous reconnecter" });
-//     }
-
-//     req.user = foundUser;
-//     next();
-//   } catch (error) {
-//     return res.status(401).json({
-//       message: "Accès refusé, token invalide",
-//     });
-//   }
-// }
-
-// function authenticateUser(req, res, next) {
-//   const authHeader = req.headers.authorization;
-//   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-//     return res
-//       .status(401)
-//       .json({ message: "Accès interdit, token manquant !" });
-//   }
-
-//   const token = authHeader.split(" ")[1];
-
-//   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-//     if (err) {
-//       return res.status(403).json({ message: "Token expiré ou invalide" });
-//     }
-//     req.user = decoded; // Ajouter l'utilisateur au `req`
-//     next();
-//   });
-// }
-
 module.exports = {
   authMiddleware,
   //   authenticateUser,

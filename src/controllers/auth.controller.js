@@ -7,26 +7,21 @@ const { hashPassword, comparePassword } = require("../utils/helper");
 // verification si l'email est valide
 const emailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-//Verification password (au moins 8 caractères, une majuscule, une minuscule, un chiffre)
+//Verification password (au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial)
 const passwordValid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 
 async function signupUser(req, res) {
   const userReq = req.body;
 
-  if (Object.keys(userReq).length > 4) {
-    return res.status(500).json({
-      message: `Veuillez ne saisir uniquement les entrées requis à savoir le firstname, lastname, l'email et le password`,
-    });
-  }
-
   if (
+    Object.keys(userReq).length > 4 ||
     !userReq.firstname ||
     !userReq.lastname ||
     !userReq.email ||
     !userReq.password
   ) {
-    return res.status(403).json({
-      message: `Les champs firstname, lastname, email et password sont obligatoire`,
+    return res.status(500).json({
+      message: `Veuillez ne saisir uniquement les entrées requis à savoir le firstname, lastname, l'email et le password`,
     });
   }
 
@@ -60,10 +55,7 @@ async function signupUser(req, res) {
     }
 
     const signupNewUserInDB = await user.create({
-      data: {
-        ...userReq,
-        tokenRevokedAt: null, // Indique que le token n'a pas été révoqué
-      },
+      data: userReq,
       include: {
         resources: true,
         comment: true,
@@ -78,7 +70,7 @@ async function signupUser(req, res) {
     const accessToken = await jwt.sign(
       { email: signupNewUserInDB.email, id: signupNewUserInDB.id },
       process.env.JWT_SECRET,
-      { expiresIn: "1m" }
+      { expiresIn: "15m" }
     );
 
     // **Refresh Token (expire en 7 jours)**
@@ -94,14 +86,6 @@ async function signupUser(req, res) {
       data: { refreshToken: refreshToken },
     });
 
-    // res.cookie("jwt", token, {
-    //   //Set the cookie duration to 3 days
-    //   maxAge: 1000 * 60 * 60 * 24 * 3,
-    //   sameSite: "None",
-    //   httpOnly: false, //Mettre à true en prod
-    //   secure: true,
-    // });
-
     // Envoyer les tokens au client
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true, // Empêche l'accès par JS (protection XSS)
@@ -115,13 +99,13 @@ async function signupUser(req, res) {
     delete signupNewUserInDB.isDeleted;
     delete signupNewUserInDB.role;
     delete signupNewUserInDB.updatedAt;
-    delete signupNewUserInDB.tokenRevokedAt;
+    delete signupNewUserInDB.num;
 
     return res.status(200).json({
       isLoggedIn: true,
-      message: `Compte créé et connecté avec succès en tant que ${signupNewUserInDB.email}`,
+      message: `Compte créé et connecté avec succès en tant que '${signupNewUserInDB.email} - ${signupNewUserInDB.firstname} ${signupNewUserInDB.lastname}'`,
       user: signupNewUserInDB,
-      accessToken: accessToken, // Envoyer le token d'accès au frontend
+      accessToken: accessToken, // Envoie du token d'accès au frontend
     });
   } catch (error) {
     return res.status(500).json({
@@ -133,21 +117,16 @@ async function signupUser(req, res) {
 async function loginUser(req, res) {
   const userReq = req.body;
 
-  if (Object.keys(userReq).length > 2) {
+  if (Object.keys(userReq).length > 2 || !userReq.email || !userReq.password) {
     return res.status(500).json({
-      message: `Veuillez ne saisir uniquement les entrées requis à savoir l'email et le password`,
+      message: `Veuillez ne saisir uniquement les champs requis à savoir l'email et le password`,
     });
   }
 
-  if (!userReq.email || !userReq.password) {
-    return res.status(403).json({
-      message: `Les entrées email et password sont obligatoire`,
-    });
-  }
-
+  //Verification si l'email saisit est valide
   if (!emailValid.test(userReq.email)) {
     return res.status(403).json({
-      message: `Veuillez saisir une adresse mail valide.`,
+      message: `Veuillez saisir une adresse email valide.`,
     });
   }
 
@@ -169,25 +148,17 @@ async function loginUser(req, res) {
       userReq.password,
       searchUserInDB.password
     );
+
+    //Si le mot de passe est incorrect
     if (!passwordIsCorrect) {
       return res.status(400).json({ message: "Mot de passe incorrect !" });
     }
-
-    // Mise à jour de tokenRevokedAt à null pour permettre l'accès
-    await user.update({
-      where: {
-        email: searchUserInDB.email,
-      },
-      data: {
-        tokenRevokedAt: null, // Réinitialisation pour permettre l'accès avec ce token
-      },
-    });
 
     // **Access Token (expire en 15 min)**
     const accessToken = await jwt.sign(
       { email: searchUserInDB.email, id: searchUserInDB.id },
       process.env.JWT_SECRET,
-      { expiresIn: "1m" }
+      { expiresIn: "15m" }
     );
 
     // **Refresh Token (expire en 7 jours)**
@@ -197,19 +168,11 @@ async function loginUser(req, res) {
       { expiresIn: "7d" }
     );
 
-    // Stocker le Refresh Token en base de données (optionnel mais recommandé)
+    // Stocker le Refresh Token en base de données
     await user.update({
       where: { email: userReq.email },
       data: { refreshToken: refreshToken },
     });
-
-    // Stockage du token dans un cookie
-    // res.cookie("jwt", token, {
-    //   maxAge: 1000 * 60 * 60 * 24 * 3, //3 jours
-    //   sameSite: "None",
-    //   httpOnly: false, //Mettre à true en prod
-    //   secure: true,
-    // });
 
     // Envoyer les tokens au client
     res.cookie("refreshToken", refreshToken, {
@@ -225,7 +188,7 @@ async function loginUser(req, res) {
     delete searchUserInDB.role;
     delete searchUserInDB.updatedAt;
     delete searchUserInDB.refreshToken;
-    delete searchUserInDB.tokenRevokedAt;
+    delete searchUserInDB.num;
 
     return res.status(200).json({
       isLoggedIn: true,
@@ -240,30 +203,6 @@ async function loginUser(req, res) {
   }
 }
 
-// async function logout(req, res) {
-//   try {
-//     const token = req.cookies.jwt;
-//     if (!token) {
-//       return res.status(400).json({ message: "Aucun token trouvé" });
-//     }
-
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-//     await user.update({
-//       where: {
-//         email: decoded.email,
-//       },
-//       data: {
-//         tokenRevokedAt: new Date(),
-//       },
-//     });
-
-//     res.clearCookie("jwt");
-//     return res.status(200).json({ message: "Déconnexion réussie" });
-//   } catch (error) {
-//     return res.status(500).json({ message: "Erreur lors de la déconnexion" });
-//   }
-// }
 async function logoutUser(req, res) {
   try {
     const refreshToken = req.cookies.refreshToken;

@@ -18,6 +18,7 @@ datasource db {
  */
 model User {
   id             String     @id @default(uuid())
+  num            Int        @default(autoincrement())
   firstname      String
   lastname       String
   email          String     @unique
@@ -25,7 +26,6 @@ model User {
   urlProfilImage String?
   isDeleted      Boolean    @default(false)
   refreshToken   String?
-  tokenRevokedAt DateTime?
   role           UserRole   @default(User)
   resources      Resource[]
   comment        Comment[]

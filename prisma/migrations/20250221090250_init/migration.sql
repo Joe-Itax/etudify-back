@@ -4,12 +4,14 @@ CREATE TYPE "UserRole" AS ENUM ('Administrator', 'User');
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
+    "num" SERIAL NOT NULL,
     "firstname" TEXT NOT NULL,
     "lastname" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "urlProfilImage" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "refreshToken" TEXT,
     "role" "UserRole" NOT NULL DEFAULT 'User',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
